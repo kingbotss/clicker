@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Small draggable crosshair window. Only this 72dp view catches touches; the
+     rest of the screen stays touchable so the user can switch apps while picking. -->
+<View xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="72dp"
+    android:layout_height="72dp"
+    android:background="@drawable/ic_crosshair" />

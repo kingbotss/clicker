@@ -204,6 +204,7 @@ class MainActivity : AppCompatActivity() {
             }
             container.addView(row)
         }
+        ClickerAccessibilityService.instance?.refreshOverlayPoints()
     }
 
     private fun editPointDialog(point: ClickPoint) {

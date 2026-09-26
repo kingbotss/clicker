@@ -1,43 +1,43 @@
-# Rename app identity → TapMate / com.kingboat.automa
+# Overlay fixes: draggable bar, colored point markers, pick across apps
 
-## Why
-Play Protect flags the sideloaded accessibility autoclicker. Renaming to a fresh
-package id resets the (locally flagged) package reputation and drops the generic
-`com.personal.tools` identity. NOTE: behavior (accessibility gesture injection) +
-sideload + unknown-signer reputation are the primary Play Protect triggers; the
-rename helps but is not guaranteed to fully clear the flag.
+## Bugs (from user, on-device)
+1. Can't drag the floating control bar.
+2. Click points should have visible color (markers on screen).
+3. Can't choose a point while switching apps (picker blocks app switching).
 
-## Decisions (from user)
-- applicationId / namespace: `com.kingboat.automa`
-- app display name: `TapMate`
+## Root causes
+1. `OverlayController.dragListener.onTouch` returns `false` on ACTION_DOWN, so
+   the framework never delivers ACTION_MOVE/UP → drag dead. Fix: return true.
+2. `startPicker()` adds a MATCH_PARENT overlay whose `setOnTouchListener` returns
+   true for the whole screen → consumes every touch → can't reach recents/home to
+   open the target app. Fix: pass-through picker.
+3. Saved points never rendered on screen; `marker` color unused.
 
-## Tasks
-- [ ] git mv source dir com/personal/tools → com/kingboat/automa
-- [ ] Replace `com.personal.tools` → `com.kingboat.automa` in all .kt (package,
-      imports, ControlReceiver action constants)
-- [ ] build.gradle.kts: namespace + applicationId
-- [ ] settings.gradle.kts: rootProject.name → "TapMate"
-- [ ] strings.xml: app_name → "TapMate"; accessibility_label → "TapMate"
-- [ ] themes.xml + manifest: Theme.PersonalTools → Theme.TapMate
-- [ ] Database.kt: db file name personal_tools.db → tapmate.db (fresh pkg = new data)
-- [ ] Clean build (assembleRelease) + verify no com.personal / PersonalTools refs
-- [ ] Uninstall old com.personal.tools; install renamed APK; launch
+## Plan
+- [ ] Fix drag: dragListener returns true (consume gesture). Reuse the same
+      draggable pattern for the crosshair.
+- [ ] Redesign picker as pass-through:
+      - small draggable crosshair window (WRAP_CONTENT, moves via its own touch);
+      - small bottom toolbar window (live coords + ✓ confirm / ✕ cancel);
+      - NO full-screen touch grabber → underlying app still gets touches, so the
+        user can open recents / launch the target app, then position + confirm.
+      - point coord = crosshair window center in screen space (LAYOUT_IN_SCREEN).
+- [ ] Colored point markers (bug 2): render each active-profile point as a small
+      colored numbered dot overlay (marker color, FLAG_NOT_TOUCHABLE so it never
+      eats touches). Show with the control bar + refresh after add/delete/profile
+      switch; clear on teardown.
+- [ ] New layouts: overlay_crosshair.xml, overlay_pickbar.xml, marker_dot dot
+      drawable + row. Keep OverlayController focused (<400 lines).
+- [ ] Build (assembleRelease), verify config unchanged, commit + push + re-release.
 
-## Review (done 2026-09-26)
-- Renamed everywhere: namespace + applicationId = `com.kingboat.automa`; app_name
-  + accessibility_label = "TapMate"; Theme.PersonalTools → Theme.TapMate; db file
-  → tapmate.db; rootProject.name → TapMate; ControlReceiver actions →
-  com.kingboat.automa.TOGGLE/.HIDE. Source dir git-mv'd to com/kingboat/automa.
-- `grep -ri personal` over src/gradle = clean. `assembleRelease` BUILD SUCCESSFUL
-  (2m11s), signed release APK produced. Merged manifest package = com.kingboat.automa.
-- Old com.personal.tools was never actually installed on device (pm path empty) —
-  prior session's install had failed.
-- INSTALL BLOCKED by MIUI: `INSTALL_FAILED_USER_RESTRICTED` — adb install refused.
-  Needs on-device action (see below). APK staged at /sdcard/Download/TapMate.apk.
-
-## Next (user action on phone — MIUI gate)
-Either: Developer options → enable "Install via USB" (+ "USB debugging (Security
-settings)") with Mi account signed in, then rerun `adb install -r`; OR open the
-phone's Files app → Download → TapMate.apk → Install, accepting MIUI prompts.
-Play Protect may still warn on first launch (accessibility autoclicker behavior);
-"Install anyway"/"Install without scanning" if you trust it.
+## Review (done 2026-09-27)
+- Bug 1 (drag): makeDraggable now returns true on DOWN/MOVE/UP → bar drags.
+- Bug 2 (color): numbered colored dots (marker color, non-touchable) drawn per
+  active-profile point; shown with controls, refreshed on add/edit/delete/switch.
+- Bug 3 (pick across apps): picker rewritten pass-through — small draggable
+  crosshair + top toolbar only; rest of screen touchable so the user can open the
+  target app then position + confirm. Point = crosshair centre (LAYOUT_IN_SCREEN).
+- Removed dead overlay_selector.xml. assembleRelease BUILD SUCCESSFUL.
+- Install still MIUI-gated (INSTALL_FAILED_USER_RESTRICTED); APK staged at
+  /sdcard/Download/TapMate.apk. On-device interaction can't be host-driven on
+  MIUI — user verifies drag / markers / cross-app pick by hand.

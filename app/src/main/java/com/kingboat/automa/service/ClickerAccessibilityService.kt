@@ -114,6 +114,7 @@ class ClickerAccessibilityService : AccessibilityService() {
             overlay.hideBar()
             postNotification(isRunning)
         }
+        overlay.showMarkers()
     }
 
     fun hideControls() {
@@ -124,6 +125,11 @@ class ClickerAccessibilityService : AccessibilityService() {
 
     fun startPicker() {
         if (::overlay.isInitialized) overlay.startPicker()
+    }
+
+    /** Re-render on-screen point markers after the point set changes. */
+    fun refreshOverlayPoints() {
+        if (::overlay.isInitialized && controlsShown) overlay.refreshMarkers()
     }
 
     private fun postNotification(running: Boolean) {

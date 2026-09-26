@@ -13,21 +13,33 @@ import android.widget.Toast
 import com.kingboat.automa.R
 
 /**
- * Hosts the floating control bar and the draggable point selector. Both are
- * added as [WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY] windows from
- * the accessibility service, so they need **no** SYSTEM_ALERT_WINDOW permission
- * and are not blocked by OEM overlay gates (e.g. MIUI). This mirrors how
- * production autoclickers avoid the overlay permission entirely.
+ * Hosts the floating control bar, the pass-through point picker and the on-screen
+ * point markers. Every window is a [WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY],
+ * so they need **no** SYSTEM_ALERT_WINDOW permission and aren't blocked by OEM
+ * overlay gates (e.g. MIUI).
+ *
+ * The picker deliberately does NOT cover the whole screen: only the small
+ * crosshair and the top toolbar catch touches, so the user can still reach
+ * recents / launch the target app while positioning the point.
  */
 class OverlayController(private val service: ClickerAccessibilityService) {
 
     private val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val inflater = LayoutInflater.from(service)
+    private val density = service.resources.displayMetrics.density
+
     private var barView: View? = null
-    private var selectorView: View? = null
     private var toggleButton: Button? = null
 
+    private var crosshairView: View? = null
+    private var pickbarView: View? = null
+    private var crosshairParams: WindowManager.LayoutParams? = null
+
+    private val markerViews = mutableListOf<View>()
+
     val isBarShown: Boolean get() = barView != null
+
+    private fun dp(v: Int) = (v * density).toInt()
 
     // --- floating control bar ---
 
@@ -40,12 +52,13 @@ class OverlayController(private val service: ClickerAccessibilityService) {
         }
         view.findViewById<Button>(R.id.btn_pick).setOnClickListener { startPicker() }
 
-        val params = params(fullScreen = false).apply {
+        val params = params().apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 24
-            y = 240
+            x = dp(8)
+            y = dp(120)
         }
-        view.findViewById<TextView>(R.id.handle).setOnTouchListener(dragListener(params))
+        // The handle drags the whole bar window.
+        makeDraggable(view, view.findViewById(R.id.handle), params)
         wm.addView(view, params)
         barView = view
     }
@@ -63,95 +76,161 @@ class OverlayController(private val service: ClickerAccessibilityService) {
         }
     }
 
-    private fun dragListener(params: WindowManager.LayoutParams) = object : View.OnTouchListener {
-        private var startX = 0; private var startY = 0
-        private var touchX = 0f; private var touchY = 0f
+    /**
+     * Drags [windowView]'s window when [handle] is touched. Returns true so the
+     * framework keeps delivering MOVE/UP to us (returning false on DOWN would
+     * silently cancel the drag). [onMove] fires after each reposition.
+     */
+    private fun makeDraggable(
+        windowView: View,
+        handle: View,
+        params: WindowManager.LayoutParams,
+        onMove: (() -> Unit)? = null,
+    ) {
+        handle.setOnTouchListener(object : View.OnTouchListener {
+            private var startX = 0; private var startY = 0
+            private var touchX = 0f; private var touchY = 0f
 
-        override fun onTouch(v: View, e: MotionEvent): Boolean {
-            when (e.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    startX = params.x; startY = params.y
-                    touchX = e.rawX; touchY = e.rawY
+            override fun onTouch(v: View, e: MotionEvent): Boolean {
+                when (e.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startX = params.x; startY = params.y
+                        touchX = e.rawX; touchY = e.rawY
+                        return true
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        params.x = startX + (e.rawX - touchX).toInt()
+                        params.y = startY + (e.rawY - touchY).toInt()
+                        runCatching { wm.updateViewLayout(windowView, params) }
+                        onMove?.invoke()
+                        return true
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> return true
                 }
-                MotionEvent.ACTION_MOVE -> {
-                    params.x = startX + (e.rawX - touchX).toInt()
-                    params.y = startY + (e.rawY - touchY).toInt()
-                    barView?.let { wm.updateViewLayout(it, params) }
-                }
+                return false
             }
-            return false
-        }
+        })
     }
 
-    // --- draggable point selector ---
+    // --- pass-through point picker ---
 
     /**
-     * Full-screen selector with a draggable crosshair. Touch rawX/rawY are
-     * absolute display coordinates — exactly what dispatchGesture expects — so
-     * the confirmed point maps 1:1 to where taps will land.
+     * Shows a draggable crosshair + a small top toolbar. The rest of the screen
+     * stays touchable, so the user can open the target app, then position the
+     * crosshair and confirm. The picked point is the crosshair window's centre
+     * in display coordinates (LAYOUT_IN_SCREEN), which matches dispatchGesture.
      */
     fun startPicker() {
-        if (selectorView != null) return
+        if (crosshairView != null) return
+        showMarkers() // let the user see existing points while adding
         Toast.makeText(service, R.string.tap_to_add, Toast.LENGTH_SHORT).show()
-        val view = inflater.inflate(R.layout.overlay_selector, null)
-        val crosshair = view.findViewById<View>(R.id.crosshair)
-        val coord = view.findViewById<TextView>(R.id.coord)
 
-        var selX = -1
-        var selY = -1
-        fun moveTo(rawX: Int, rawY: Int) {
-            selX = rawX; selY = rawY
-            crosshair.x = rawX - crosshair.width / 2f
-            crosshair.y = rawY - crosshair.height / 2f
-            coord.text = service.getString(R.string.coord_fmt, rawX, rawY)
+        val cross = inflater.inflate(R.layout.overlay_crosshair, null)
+        val m = service.resources.displayMetrics
+        val size = dp(72)
+        val cp = params().apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = m.widthPixels / 2 - size / 2
+            y = m.heightPixels / 2 - size / 2
         }
 
-        view.setOnTouchListener { _, e ->
-            when (e.action) {
-                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE ->
-                    moveTo(e.rawX.toInt(), e.rawY.toInt())
+        val bar = inflater.inflate(R.layout.overlay_pickbar, null)
+        val coord = bar.findViewById<TextView>(R.id.coord)
+
+        fun centre(): Pair<Int, Int> {
+            val w = crossSize(cross.width, size)
+            val h = crossSize(cross.height, size)
+            return (cp.x + w / 2) to (cp.y + h / 2)
+        }
+        fun updateCoord() {
+            val (cx, cy) = centre()
+            coord.text = service.getString(R.string.coord_fmt, cx, cy)
+        }
+
+        makeDraggable(cross, cross, cp) { updateCoord() }
+
+        bar.findViewById<Button>(R.id.btn_confirm).setOnClickListener {
+            val (cx, cy) = centre()
+            service.repo.addPointToActive(cx, cy)
+            Toast.makeText(service, "Added ($cx, $cy)", Toast.LENGTH_SHORT).show()
+            stopPicker()
+            showMarkers()
+        }
+        bar.findViewById<Button>(R.id.btn_cancel).setOnClickListener { stopPicker() }
+
+        val bp = params().apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            y = dp(24)
+        }
+
+        wm.addView(cross, cp)
+        wm.addView(bar, bp)
+        crosshairView = cross
+        crosshairParams = cp
+        pickbarView = bar
+        cross.post { updateCoord() }
+    }
+
+    private fun crossSize(measured: Int, fallback: Int) = if (measured > 0) measured else fallback
+
+    private fun stopPicker() {
+        pickbarView?.let { runCatching { wm.removeView(it) } }
+        crosshairView?.let { runCatching { wm.removeView(it) } }
+        pickbarView = null
+        crosshairView = null
+        crosshairParams = null
+    }
+
+    // --- on-screen point markers (numbered colored dots) ---
+
+    /** Draws a numbered colored dot at each active-profile point. Non-touchable. */
+    fun showMarkers() {
+        clearMarkers()
+        val dot = dp(28)
+        service.repo.getActivePoints().forEachIndexed { i, p ->
+            val v = inflater.inflate(R.layout.overlay_marker, null) as TextView
+            v.text = (i + 1).toString()
+            val mp = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = p.x - dot / 2
+                y = p.y - dot / 2
             }
-            true
-        }
-        view.findViewById<Button>(R.id.btn_confirm).setOnClickListener {
-            if (selX < 0) {
-                Toast.makeText(service, R.string.tap_to_add, Toast.LENGTH_SHORT).show()
-            } else {
-                service.repo.addPointToActive(selX, selY)
-                Toast.makeText(service, "Added ($selX, $selY)", Toast.LENGTH_SHORT).show()
-                stopPicker()
-            }
-        }
-        view.findViewById<Button>(R.id.btn_cancel).setOnClickListener { stopPicker() }
-
-        val params = params(fullScreen = true)
-        wm.addView(view, params)
-        selectorView = view
-        crosshair.post {
-            val m = service.resources.displayMetrics
-            moveTo(m.widthPixels / 2, m.heightPixels / 2)
+            runCatching { wm.addView(v, mp) }.onSuccess { markerViews += v }
         }
     }
 
-    private fun stopPicker() {
-        selectorView?.let { runCatching { wm.removeView(it) } }
-        selectorView = null
+    fun clearMarkers() {
+        markerViews.forEach { runCatching { wm.removeView(it) } }
+        markerViews.clear()
+    }
+
+    /** Re-render markers if any overlay UI is currently visible. */
+    fun refreshMarkers() {
+        if (barView != null || crosshairView != null || markerViews.isNotEmpty()) showMarkers()
     }
 
     fun teardown() {
         hideBar()
         stopPicker()
+        clearMarkers()
     }
 
-    private fun params(fullScreen: Boolean): WindowManager.LayoutParams {
-        val size = if (fullScreen) WindowManager.LayoutParams.MATCH_PARENT
-        else WindowManager.LayoutParams.WRAP_CONTENT
-        // LAYOUT_IN_SCREEN makes the window span the full display (incl. status
-        // bar), so touch rawX/rawY match dispatchGesture's display coordinates.
+    /** Base params for a touchable, non-focusable overlay window. LAYOUT_IN_SCREEN
+     *  makes touch rawX/rawY match dispatchGesture's display coordinates. */
+    private fun params(): WindowManager.LayoutParams {
         val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
         return WindowManager.LayoutParams(
-            size, size,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             flags,
             PixelFormat.TRANSLUCENT,
