@@ -2,5 +2,15 @@
     <style name="Theme.TapMate" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
         <item name="colorOnPrimary">@color/white</item>
+        <item name="materialButtonStyle">@style/Widget.TapMate.Button</item>
+    </style>
+
+    <!-- Buttons with ~20% less padding than the Material3 default (24dp -> 19dp
+         horizontal, 6dp -> 5dp vertical) for a tighter layout. -->
+    <style name="Widget.TapMate.Button" parent="Widget.Material3.Button">
+        <item name="android:paddingLeft">19dp</item>
+        <item name="android:paddingRight">19dp</item>
+        <item name="android:paddingTop">5dp</item>
+        <item name="android:paddingBottom">5dp</item>
     </style>
 </resources>

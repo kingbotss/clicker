@@ -74,6 +74,8 @@ class OverlayController(private val service: ClickerAccessibilityService) {
             toggleButton?.text =
                 service.getString(if (running) R.string.overlay_stop else R.string.overlay_go)
         }
+        // Re-render markers so they become draggable when stopped / inert when running.
+        refreshMarkers()
     }
 
     /**
@@ -86,6 +88,7 @@ class OverlayController(private val service: ClickerAccessibilityService) {
         handle: View,
         params: WindowManager.LayoutParams,
         onMove: (() -> Unit)? = null,
+        onEnd: (() -> Unit)? = null,
     ) {
         handle.setOnTouchListener(object : View.OnTouchListener {
             private var startX = 0; private var startY = 0
@@ -105,7 +108,10 @@ class OverlayController(private val service: ClickerAccessibilityService) {
                         onMove?.invoke()
                         return true
                     }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> return true
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        onEnd?.invoke()
+                        return true
+                    }
                 }
                 return false
             }
@@ -183,25 +189,37 @@ class OverlayController(private val service: ClickerAccessibilityService) {
 
     // --- on-screen point markers (numbered colored dots) ---
 
-    /** Draws a numbered colored dot at each active-profile point. Non-touchable. */
+    /**
+     * Draws a numbered colored dot at each active-profile point. While the
+     * clicker is stopped the dots are draggable so the user can fine-tune a
+     * point on-screen; the new position is persisted on release. While running
+     * they are non-touchable so they never intercept the taps being dispatched.
+     */
     fun showMarkers() {
         clearMarkers()
         val dot = dp(30)
+        val editable = !service.isRunning
         service.repo.getActivePoints().forEachIndexed { i, p ->
             val v = inflater.inflate(R.layout.overlay_marker, null)
             v.findViewById<TextView>(R.id.marker_label).text = (i + 1).toString()
+            var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+            if (!editable) flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             val mp = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                flags,
                 PixelFormat.TRANSLUCENT,
             ).apply {
                 gravity = Gravity.TOP or Gravity.START
                 x = p.x - dot / 2
                 y = p.y - dot / 2
+            }
+            if (editable) {
+                makeDraggable(v, v, mp, onEnd = {
+                    service.repo.updatePoint(p.id, p.label, mp.x + dot / 2, mp.y + dot / 2, p.delayMs)
+                })
             }
             runCatching { wm.addView(v, mp) }.onSuccess { markerViews += v }
         }
