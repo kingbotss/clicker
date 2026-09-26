@@ -1,4 +1,4 @@
-package com.personal.tools.service
+package com.kingboat.automa.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
@@ -9,8 +9,8 @@ import android.content.Intent
 import android.graphics.Path
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import com.personal.tools.data.ClipboardStore
-import com.personal.tools.data.ClickRepository
+import com.kingboat.automa.data.ClipboardStore
+import com.kingboat.automa.data.ClickRepository
 
 /**
  * The single no-root workhorse:

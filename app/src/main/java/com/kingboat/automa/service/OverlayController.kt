@@ -1,4 +1,4 @@
-package com.personal.tools.service
+package com.kingboat.automa.service
 
 import android.content.Context
 import android.graphics.PixelFormat
@@ -10,7 +10,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import com.personal.tools.R
+import com.kingboat.automa.R
 
 /**
  * Hosts the floating control bar and the draggable point selector. Both are

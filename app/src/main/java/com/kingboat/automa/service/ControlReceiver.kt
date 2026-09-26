@@ -1,4 +1,4 @@
-package com.personal.tools.service
+package com.kingboat.automa.service
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -14,7 +14,7 @@ class ControlReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val ACTION_TOGGLE = "com.personal.tools.TOGGLE"
-        const val ACTION_HIDE = "com.personal.tools.HIDE"
+        const val ACTION_TOGGLE = "com.kingboat.automa.TOGGLE"
+        const val ACTION_HIDE = "com.kingboat.automa.HIDE"
     }
 }

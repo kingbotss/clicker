@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PersonalTools"
+rootProject.name = "TapMate"
 include(":app")

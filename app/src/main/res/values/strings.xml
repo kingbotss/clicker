@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name">Personal Tools</string>
-    <string name="accessibility_label">Personal Tools Clicker</string>
+    <string name="app_name">TapMate</string>
+    <string name="accessibility_label">TapMate</string>
     <string name="accessibility_description">Performs automated taps for the autoclicker and captures copied text for the clipboard history. Used only by you, on this device.</string>
 
     <string name="tab_clicker">Clicker</string>

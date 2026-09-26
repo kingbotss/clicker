@@ -1,4 +1,4 @@
-package com.personal.tools.model
+package com.kingboat.automa.model
 
 /** A named set of tap points, e.g. one per app/purpose. */
 data class Profile(

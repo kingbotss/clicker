@@ -1,4 +1,4 @@
-package com.personal.tools.data
+package com.kingboat.automa.data
 
 import android.content.Context
 import org.json.JSONArray

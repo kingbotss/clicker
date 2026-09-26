@@ -1,4 +1,4 @@
-package com.personal.tools.data
+package com.kingboat.automa.data
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -48,7 +48,7 @@ class Database private constructor(context: Context) :
     }
 
     companion object {
-        private const val NAME = "personal_tools.db"
+        private const val NAME = "tapmate.db"
         private const val VERSION = 1
 
         @Volatile

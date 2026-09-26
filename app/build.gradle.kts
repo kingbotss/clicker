@@ -12,11 +12,11 @@ val keystoreProps = Properties().apply {
 }
 
 android {
-    namespace = "com.personal.tools"
+    namespace = "com.kingboat.automa"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.personal.tools"
+        applicationId = "com.kingboat.automa"
         minSdk = 28
         targetSdk = 35
         versionCode = 1

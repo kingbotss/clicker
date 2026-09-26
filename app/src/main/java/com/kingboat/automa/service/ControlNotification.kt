@@ -1,4 +1,4 @@
-package com.personal.tools.service
+package com.kingboat.automa.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -7,7 +7,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import com.personal.tools.R
+import com.kingboat.automa.R
 
 /** Builds the control notification and its Start/Stop + Hide actions. */
 object ControlNotification {

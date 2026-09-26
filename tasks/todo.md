@@ -1,62 +1,43 @@
-# Personal Tools — v2: profiles + SQLite
+# Rename app identity → TapMate / com.kingboat.automa
 
-## New requirements (from user)
-- **Clicker tab** owns: profile selection, points (with per-point name),
-  time-between-taps (per-point delay), Start/Stop, and the run controls
-  (floating bar / notification + Show/Hide).
-- **Named profiles + named points**: profiles = saved point-sets for different
-  apps/purposes; each point has a label, x/y, delay.
-- **Setup tab** = permissions + test only (no point selection).
-- Storage: **real database** — raw SQLite via SQLiteOpenHelper (no new deps,
-  keeps the app minimal). Replaces PointStore (JSON-in-prefs).
+## Why
+Play Protect flags the sideloaded accessibility autoclicker. Renaming to a fresh
+package id resets the (locally flagged) package reputation and drops the generic
+`com.personal.tools` identity. NOTE: behavior (accessibility gesture injection) +
+sideload + unknown-signer reputation are the primary Play Protect triggers; the
+rename helps but is not guaranteed to fully clear the flag.
 
-## Schema (SQLiteOpenHelper, v1)
-- profiles(id PK, name, created_at)
-- points(id PK, profile_id FK→profiles ON DELETE CASCADE, label, x, y,
-  delay_ms, position)
-- meta(key PK, value)  — active_profile, control_mode
+## Decisions (from user)
+- applicationId / namespace: `com.kingboat.automa`
+- app display name: `TapMate`
 
 ## Tasks
-- [ ] data/Database.kt — SQLiteOpenHelper, FK on, create tables
-- [ ] data/ClickRepository.kt — profiles/points/meta CRUD + active profile +
-      control mode; ensureDefaultProfile()
-- [ ] model/Profile.kt; extend model/ClickPoint.kt (id,label,position)
-- [ ] delete data/PointStore.kt (keep ClipboardStore for now)
-- [ ] service/ClickerAccessibilityService.kt — use repo; add testTap()
-- [ ] service/OverlayController.kt — selector adds to active profile via repo
-- [ ] ui/MainActivity.kt — profiles spinner (new/rename/delete), points list
-      with labels, add-by-coords + pick-on-screen, Start/Stop, control mode +
-      show/hide (all on Clicker); Setup = accessibility status + Test tap
-- [ ] layouts: content_clicker.xml (rework), content_setup.xml (perm+test),
-      row_point.xml (+label); strings
-- [ ] Build + verify on emulator (profiles, named points, taps, controls)
+- [ ] git mv source dir com/personal/tools → com/kingboat/automa
+- [ ] Replace `com.personal.tools` → `com.kingboat.automa` in all .kt (package,
+      imports, ControlReceiver action constants)
+- [ ] build.gradle.kts: namespace + applicationId
+- [ ] settings.gradle.kts: rootProject.name → "TapMate"
+- [ ] strings.xml: app_name → "TapMate"; accessibility_label → "TapMate"
+- [ ] themes.xml + manifest: Theme.PersonalTools → Theme.TapMate
+- [ ] Database.kt: db file name personal_tools.db → tapmate.db (fresh pkg = new data)
+- [ ] Clean build (assembleRelease) + verify no com.personal / PersonalTools refs
+- [ ] Uninstall old com.personal.tools; install renamed APK; launch
 
-## Prior verification (v1, on emulator Android 14)
-- Accessibility overlay bar + draggable crosshair selector WORK (no
-  SYSTEM_ALERT_WINDOW — TYPE_ACCESSIBILITY_OVERLAY, appop=NONE).
-- dispatchGesture taps WORK (injected tap switched the app's tab).
-- Point selector persists exact coordinates.
-- Fixed: invisible selected tab; per-tab data refresh on switch.
+## Review (done 2026-09-26)
+- Renamed everywhere: namespace + applicationId = `com.kingboat.automa`; app_name
+  + accessibility_label = "TapMate"; Theme.PersonalTools → Theme.TapMate; db file
+  → tapmate.db; rootProject.name → TapMate; ControlReceiver actions →
+  com.kingboat.automa.TOGGLE/.HIDE. Source dir git-mv'd to com/kingboat/automa.
+- `grep -ri personal` over src/gradle = clean. `assembleRelease` BUILD SUCCESSFUL
+  (2m11s), signed release APK produced. Merged manifest package = com.kingboat.automa.
+- Old com.personal.tools was never actually installed on device (pm path empty) —
+  prior session's install had failed.
+- INSTALL BLOCKED by MIUI: `INSTALL_FAILED_USER_RESTRICTED` — adb install refused.
+  Needs on-device action (see below). APK staged at /sdcard/Download/TapMate.apk.
 
-## Review (v2 — verified on emulator, Android 14 / SDK 34)
-- Build clean (SQLite, zero new deps). Installs + launches, no crash.
-- **Clicker tab** as requested: Profile spinner + NEW/RENAME/DELETE; named-point
-  inputs (Name / X / Y / ms-between); Add point + Pick on screen; Start/Stop;
-  Run controls (Floating button / Notification, Show/Hide) all on this tab.
-- **Setup tab** = permissions + test only. Accessibility shows ON; "Send test
-  tap" → **"Test tap succeeded ✓"** (dispatchGesture completion callback fired).
-- **SQLite** verified via sqlite3: profiles(id,name,created_at),
-  points(id,profile_id,label,x,y,delay_ms,position), meta(active_profile,
-  control_mode). FK cascade on profile delete.
-- **Pick on screen** selector floats over OTHER apps (home screen) as a
-  TYPE_ACCESSIBILITY_OVERLAY, tracks live coords, and confirmed point persisted
-  to the active profile as P1 (251,501) delay 500 — exact.
-- Architecture: overlays hosted from the AccessibilityService
-  (TYPE_ACCESSIBILITY_OVERLAY) — NO SYSTEM_ALERT_WINDOW / foreground service.
-  Manifest permission is now only POST_NOTIFICATIONS.
-
-## Known device notes
-- MIUI (phone) reverts accessibility enabled outside its UI and gates overlays;
-  the accessibility-overlay approach avoids the overlay gate. Enable the service
-  via MIUI's own dialog so it persists.
-- Add-by-keyboard works; only host-side blind taps were imprecise in testing.
+## Next (user action on phone — MIUI gate)
+Either: Developer options → enable "Install via USB" (+ "USB debugging (Security
+settings)") with Mi account signed in, then rerun `adb install -r`; OR open the
+phone's Files app → Download → TapMate.apk → Install, accepting MIUI prompts.
+Play Protect may still warn on first launch (accessibility autoclicker behavior);
+"Install anyway"/"Install without scanning" if you trust it.

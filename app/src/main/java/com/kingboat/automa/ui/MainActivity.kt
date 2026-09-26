@@ -1,4 +1,4 @@
-package com.personal.tools.ui
+package com.kingboat.automa.ui
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -22,13 +22,13 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.tabs.TabLayout
-import com.personal.tools.R
-import com.personal.tools.data.ClickRepository
-import com.personal.tools.data.ClipboardStore
-import com.personal.tools.databinding.ActivityMainBinding
-import com.personal.tools.model.ClickPoint
-import com.personal.tools.model.Profile
-import com.personal.tools.service.ClickerAccessibilityService
+import com.kingboat.automa.R
+import com.kingboat.automa.data.ClickRepository
+import com.kingboat.automa.data.ClipboardStore
+import com.kingboat.automa.databinding.ActivityMainBinding
+import com.kingboat.automa.model.ClickPoint
+import com.kingboat.automa.model.Profile
+import com.kingboat.automa.service.ClickerAccessibilityService
 
 class MainActivity : AppCompatActivity() {
 

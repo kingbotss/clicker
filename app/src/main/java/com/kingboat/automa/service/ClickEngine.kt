@@ -1,9 +1,9 @@
-package com.personal.tools.service
+package com.kingboat.automa.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
-import com.personal.tools.model.ClickPoint
+import com.kingboat.automa.model.ClickPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

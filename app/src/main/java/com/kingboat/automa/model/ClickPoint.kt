@@ -1,4 +1,4 @@
-package com.personal.tools.model
+package com.kingboat.automa.model
 
 /**
  * A single tap target belonging to a profile. The engine taps [x],[y] then

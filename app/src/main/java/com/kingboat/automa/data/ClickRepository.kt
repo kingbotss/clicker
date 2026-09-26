@@ -1,9 +1,9 @@
-package com.personal.tools.data
+package com.kingboat.automa.data
 
 import android.content.ContentValues
 import android.content.Context
-import com.personal.tools.model.ClickPoint
-import com.personal.tools.model.Profile
+import com.kingboat.automa.model.ClickPoint
+import com.kingboat.automa.model.Profile
 
 /**
  * All profile/point/meta access. Thin wrapper over [Database]; safe to create
