@@ -1,5 +1,28 @@
 # Lessons
 
+## Play Protect flags accessibility apps by reputation, not permissions/name
+- The "this app can request sensitive data / risk of theft or fraud" warning
+  fires for ANY app that binds an AccessibilityService with canPerformGestures.
+  It is behavior/capability-based. Renaming the package (com.personal.tools →
+  com.kingboat.automa), changing the label, or re-signing does NOT remove it.
+- Verified against the Play Store reference "Auto Clicker"
+  (com.truedevelopersstudio.automatictap.autoclicker 2.3.0): it uses the SAME
+  BIND_ACCESSIBILITY_SERVICE + canPerformGestures, and requests MORE overall
+  (INTERNET, billing, AD_ID, ad-services, install-referrer, foreground service,
+  wake lock) yet isn't hard-flagged — solely because of Play distribution +
+  install reputation + trusted signing key. A sideloaded build can't replicate
+  that. Don't promise a rename/manifest change will clear Play Protect.
+- Its a11y config is minimal: canPerformGestures=true, feedbackGeneric,
+  flagDefault, settingsActivity set, NO accessibilityEventTypes, no
+  canRetrieveWindowContent. Good template — mirror it for a small honest
+  footprint, but understand it's hygiene, not an evasion.
+- To USE a sideloaded a11y app on Android 13+: App info → ⋮ → "Allow restricted
+  settings", then enable the service, then accept the Play Protect prompt.
+- Inspect a reference APK with build-tools aapt (apktool failed here):
+  `aapt dump badging|permissions <apk>`; map the a11y config via
+  `aapt dump --values resources <apk> | grep xml/accessibility` then
+  `aapt dump xmltree <apk> res/<obfuscated>.xml`.
+
 ## Android UI
 - **TabLayout on a colored background**: Material3's default selected-tab text +
   indicator use `colorPrimary`. If the TabLayout background is also the primary
