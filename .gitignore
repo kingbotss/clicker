@@ -14,3 +14,6 @@ keystore.properties
 *.keystore
 *.jks
 
+# Local release helper (reads token from git credential helper at runtime)
+/publish_release.sh
+
