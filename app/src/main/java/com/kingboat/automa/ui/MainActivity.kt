@@ -57,12 +57,19 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        registerClipWatcher()
+        captureClipIntoHistory()
         reloadProfiles()
         renderPoints()
         refreshStartButton()
         clipAdapter.submit(clipStore.getAll())
         refreshClipEmpty()
         refreshSetupStatus()
+    }
+
+    override fun onPause() {
+        unregisterClipWatcher()
+        super.onPause()
     }
 
     // --- tabs ---
@@ -293,6 +300,35 @@ class MainActivity : AppCompatActivity() {
     private fun refreshClipEmpty() {
         binding.pageClipboard.clipEmpty.visibility =
             if (clipStore.getAll().isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    private val clipboardManager by lazy {
+        getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    }
+    private var clipWatcher: ClipboardManager.OnPrimaryClipChangedListener? = null
+
+    /** Capture the current clipboard while we are foreground. Android 10+ blocks
+     *  background reads, so the accessibility service can't do this itself. */
+    private fun captureClipIntoHistory() {
+        val clip = runCatching { clipboardManager.primaryClip }.getOrNull() ?: return
+        if (clip.itemCount == 0) return
+        val text = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
+        if (clipStore.add(text) && binding.pageClipboard.root.visibility == View.VISIBLE) {
+            clipAdapter.submit(clipStore.getAll())
+            refreshClipEmpty()
+        }
+    }
+
+    private fun registerClipWatcher() {
+        if (clipWatcher != null) return
+        val w = ClipboardManager.OnPrimaryClipChangedListener { captureClipIntoHistory() }
+        clipboardManager.addPrimaryClipChangedListener(w)
+        clipWatcher = w
+    }
+
+    private fun unregisterClipWatcher() {
+        clipWatcher?.let { clipboardManager.removePrimaryClipChangedListener(it) }
+        clipWatcher = null
     }
 
     private fun copyToClipboard(text: String) {
