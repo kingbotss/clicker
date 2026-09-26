@@ -28,7 +28,7 @@
 
             <Button
                 android:id="@+id/btn_new_profile"
-                style="?android:attr/buttonStyleSmall"
+                style="@style/Widget.TapMate.Button.Small"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -36,7 +36,8 @@
 
             <Button
                 android:id="@+id/btn_rename_profile"
-                style="?android:attr/buttonStyleSmall"
+                android:layout_marginStart="8dp"
+                style="@style/Widget.TapMate.Button.Small"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -44,7 +45,8 @@
 
             <Button
                 android:id="@+id/btn_delete_profile"
-                style="?android:attr/buttonStyleSmall"
+                android:layout_marginStart="8dp"
+                style="@style/Widget.TapMate.Button.Small"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -129,6 +131,7 @@
 
             <Button
                 android:id="@+id/btn_pick_screen"
+                android:layout_marginStart="12dp"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -184,6 +187,7 @@
 
             <Button
                 android:id="@+id/btn_hide_overlay"
+                android:layout_marginStart="12dp"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"

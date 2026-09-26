@@ -6,11 +6,22 @@
     </style>
 
     <!-- Buttons with ~20% less padding than the Material3 default (24dp -> 19dp
-         horizontal, 6dp -> 5dp vertical) for a tighter layout. -->
+         horizontal, 6dp -> 5dp vertical) and clearly rounded corners. -->
     <style name="Widget.TapMate.Button" parent="Widget.Material3.Button">
         <item name="android:paddingLeft">19dp</item>
         <item name="android:paddingRight">19dp</item>
         <item name="android:paddingTop">5dp</item>
         <item name="android:paddingBottom">5dp</item>
+        <item name="cornerRadius">16dp</item>
+    </style>
+
+    <!-- Compact rounded variant for tight three-in-a-row rows (profile actions). -->
+    <style name="Widget.TapMate.Button.Small" parent="Widget.TapMate.Button">
+        <item name="android:paddingLeft">8dp</item>
+        <item name="android:paddingRight">8dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
     </style>
 </resources>
