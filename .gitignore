@@ -17,3 +17,6 @@ keystore.properties
 # Local release helper (reads token from git credential helper at runtime)
 /publish_release.sh
 
+# Claude Code session id (local only)
+/.claude-session-uuid
+
