@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Small draggable crosshair window. Only this 72dp view catches touches; the
-     rest of the screen stays touchable so the user can switch apps while picking. -->
-<View xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="72dp"
-    android:layout_height="72dp"
-    android:background="@drawable/ic_crosshair" />
+<!-- Small draggable crosshair window. The FrameLayout wrapper is required so the
+     child's fixed 72dp size is honored (a root view's layout params are dropped
+     when inflated with a null parent). Only this 72dp catches touches; the rest
+     of the screen stays touchable so the user can switch apps while picking. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <View
+        android:id="@+id/crosshair"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:background="@drawable/ic_crosshair" />
+</FrameLayout>

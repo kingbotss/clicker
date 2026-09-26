@@ -186,10 +186,10 @@ class OverlayController(private val service: ClickerAccessibilityService) {
     /** Draws a numbered colored dot at each active-profile point. Non-touchable. */
     fun showMarkers() {
         clearMarkers()
-        val dot = dp(28)
+        val dot = dp(30)
         service.repo.getActivePoints().forEachIndexed { i, p ->
-            val v = inflater.inflate(R.layout.overlay_marker, null) as TextView
-            v.text = (i + 1).toString()
+            val v = inflater.inflate(R.layout.overlay_marker, null)
+            v.findViewById<TextView>(R.id.marker_label).text = (i + 1).toString()
             val mp = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,

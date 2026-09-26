@@ -2,5 +2,6 @@
     <color name="primary">#3F51B5</color>
     <color name="white">#FFFFFFFF</color>
     <color name="overlay_bg">#CC000000</color>
-    <color name="marker">#AAFF5252</color>
+    <color name="marker">#E53935</color>
+    <color name="marker_ring">#FFFFFFFF</color>
 </resources>
