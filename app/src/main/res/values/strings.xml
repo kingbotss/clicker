@@ -1,0 +1,68 @@
+<resources>
+    <string name="app_name">Personal Tools</string>
+    <string name="accessibility_label">Personal Tools Clicker</string>
+    <string name="accessibility_description">Performs automated taps for the autoclicker and captures copied text for the clipboard history. Used only by you, on this device.</string>
+
+    <string name="tab_clicker">Clicker</string>
+    <string name="tab_clipboard">Clipboard</string>
+    <string name="tab_setup">Setup</string>
+
+    <!-- Profiles -->
+    <string name="profile">Profile</string>
+    <string name="new_profile">New</string>
+    <string name="rename_profile">Rename</string>
+    <string name="delete_profile">Delete</string>
+    <string name="profile_name_hint">Profile name</string>
+
+    <!-- Clicker -->
+    <string name="points_title">Tap points (run top to bottom, then repeat)</string>
+    <string name="add_point">Add point</string>
+    <string name="pick_on_screen">Pick on screen</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
+    <string name="no_points">No points yet. Add one by coordinates, or use “Pick on screen”.</string>
+    <string name="hint_label">Name</string>
+    <string name="hint_x">X</string>
+    <string name="hint_y">Y</string>
+    <string name="hint_delay">ms between taps</string>
+    <string name="point_line">%1$s — (%2$d, %3$d) · %4$d ms</string>
+    <string name="delete">Delete</string>
+    <string name="edit_point">Edit point</string>
+    <string name="need_accessibility">Enable the Accessibility service in Setup first.</string>
+
+    <!-- Run controls (on Clicker tab) -->
+    <string name="run_controls">Run controls (use while in other apps)</string>
+    <string name="control_mode">Control mode</string>
+    <string name="mode_overlay">Floating button</string>
+    <string name="mode_notification">Notification</string>
+    <string name="show_overlay">Show controls</string>
+    <string name="hide_overlay">Hide controls</string>
+
+    <!-- Clipboard -->
+    <string name="clipboard_empty">Nothing saved yet. Copy some text and it will appear here.</string>
+    <string name="clear_all">Clear all</string>
+    <string name="copied">Copied to clipboard</string>
+
+    <!-- Setup -->
+    <string name="setup_accessibility">Accessibility service (required for taps, clipboard capture, and the on-screen controls)</string>
+    <string name="setup_note">No other permissions needed — the floating controls run as an accessibility overlay.</string>
+    <string name="open_settings">Open settings</string>
+    <string name="status_on">ON</string>
+    <string name="status_off">OFF</string>
+    <string name="test_title">Test</string>
+    <string name="test_tap">Send test tap (screen centre)</string>
+    <string name="test_hint">Dispatches one tap at the middle of the screen to confirm the service can inject touches.</string>
+    <string name="test_ok">Test tap succeeded ✓</string>
+    <string name="test_fail">Test tap failed — is the service enabled?</string>
+
+    <!-- Overlay / notification -->
+    <string name="notif_channel">Clicker controls</string>
+    <string name="notif_title">Autoclicker</string>
+    <string name="notif_running">Running</string>
+    <string name="notif_stopped">Stopped</string>
+    <string name="overlay_pick">＋Pt</string>
+    <string name="overlay_go">▶</string>
+    <string name="overlay_stop">■</string>
+    <string name="tap_to_add">Drag the target to a spot, then tap ✓</string>
+    <string name="coord_fmt">(%1$d, %2$d)</string>
+</resources>
