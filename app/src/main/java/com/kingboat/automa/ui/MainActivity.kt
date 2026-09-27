@@ -57,6 +57,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        ClickerAccessibilityService.instance?.stateListener = { runOnUiThread { refreshStartButton() } }
         registerClipWatcher()
         captureClipIntoHistory()
         reloadProfiles()
@@ -68,6 +69,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        if (ClickerAccessibilityService.instance?.stateListener != null) {
+            ClickerAccessibilityService.instance?.stateListener = null
+        }
         unregisterClipWatcher()
         super.onPause()
     }
@@ -166,6 +170,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmDeleteProfile() {
+        if (isClickerRunning()) { toast(getString(R.string.stop_to_edit)); return }
         val active = repo.getActiveProfile() ?: return
         AlertDialog.Builder(this)
             .setTitle(R.string.delete_profile)
@@ -184,8 +189,9 @@ class MainActivity : AppCompatActivity() {
     private fun addPointFromInputs() = with(binding.pageClicker) {
         val x = inputX.text.toString().toIntOrNull()
         val y = inputY.text.toString().toIntOrNull()
-        if (x == null || y == null) { toast("Enter valid X and Y"); return }
+        if (x == null || y == null || x < 0 || y < 0) { toast("Enter valid X and Y (>= 0)"); return }
         val delay = inputDelay.text.toString().toLongOrNull() ?: 500L
+        if (delay < MIN_POINT_DELAY_MS) { toast("Delay must be >= $MIN_POINT_DELAY_MS ms"); return }
         val label = inputLabel.text.toString().trim().ifBlank {
             "P${repo.getActivePoints().size + 1}"
         }
@@ -204,8 +210,12 @@ class MainActivity : AppCompatActivity() {
             val row = LayoutInflater.from(this).inflate(R.layout.row_point, container, false)
             row.findViewById<TextView>(R.id.point_text).text =
                 getString(R.string.point_line, p.label, p.x, p.y, p.delayMs)
-            row.setOnClickListener { editPointDialog(p) }
+            row.setOnClickListener {
+                if (isClickerRunning()) { toast(getString(R.string.stop_to_edit)); return@setOnClickListener }
+                editPointDialog(p)
+            }
             row.findViewById<Button>(R.id.btn_delete_point).setOnClickListener {
+                if (isClickerRunning()) { toast(getString(R.string.stop_to_edit)); return@setOnClickListener }
                 repo.deletePoint(p.id)
                 renderPoints()
             }
@@ -220,6 +230,16 @@ class MainActivity : AppCompatActivity() {
             hint = getString(R.string.hint_label)
             setText(point.label)
         }
+        val xInput = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            hint = getString(R.string.hint_x)
+            setText(point.x.toString())
+        }
+        val yInput = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            hint = getString(R.string.hint_y)
+            setText(point.y.toString())
+        }
         val delayInput = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_NUMBER
             hint = getString(R.string.hint_delay)
@@ -228,14 +248,29 @@ class MainActivity : AppCompatActivity() {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(labelInput)
+            addView(xInput)
+            addView(yInput)
             addView(delayInput)
         }
         AlertDialog.Builder(this)
             .setTitle(R.string.edit_point)
             .setView(pad(box))
             .setPositiveButton(android.R.string.ok) { _, _ ->
+                val x = xInput.text.toString().toIntOrNull()
+                val y = yInput.text.toString().toIntOrNull()
+                if (x == null || y == null || x < 0 || y < 0) {
+                    toast("Enter valid X and Y (>= 0)")
+                    return@setPositiveButton
+                }
                 val delay = delayInput.text.toString().toLongOrNull() ?: point.delayMs
-                repo.updatePoint(point.id, labelInput.text.toString().trim(), point.x, point.y, delay)
+                if (delay < MIN_POINT_DELAY_MS) {
+                    toast("Delay must be >= $MIN_POINT_DELAY_MS ms")
+                    return@setPositiveButton
+                }
+                val label = labelInput.text.toString().trim().ifBlank {
+                    "P${repo.getActivePoints().size + 1}"
+                }
+                repo.updatePoint(point.id, label, x, y, delay)
                 renderPoints()
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -282,8 +317,8 @@ class MainActivity : AppCompatActivity() {
         clipAdapter = ClipboardAdapter(
             clipStore.getAll(),
             onCopy = { copyToClipboard(it); toast(getString(R.string.copied)) },
-            onDelete = { index ->
-                clipStore.removeAt(index)
+            onDelete = { text ->
+                clipStore.removeValue(text)
                 clipAdapter.submit(clipStore.getAll())
                 refreshClipEmpty()
             },
@@ -298,8 +333,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshClipEmpty() {
+        val empty = if (::clipAdapter.isInitialized) {
+            clipAdapter.itemCount == 0
+        } else {
+            clipStore.getAll().isEmpty()
+        }
         binding.pageClipboard.clipEmpty.visibility =
-            if (clipStore.getAll().isEmpty()) View.VISIBLE else View.GONE
+            if (empty) View.VISIBLE else View.GONE
     }
 
     private val clipboardManager by lazy {
@@ -308,11 +348,13 @@ class MainActivity : AppCompatActivity() {
     private var clipWatcher: ClipboardManager.OnPrimaryClipChangedListener? = null
 
     /** Capture the current clipboard while we are foreground. Android 10+ blocks
-     *  background reads, so the accessibility service can't do this itself. */
+     *  background reads, so the accessibility service is best-effort only. */
     private fun captureClipIntoHistory() {
-        val clip = runCatching { clipboardManager.primaryClip }.getOrNull() ?: return
-        if (clip.itemCount == 0) return
-        val text = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
+        val text = runCatching {
+            val clip = clipboardManager.primaryClip ?: return
+            if (clip.itemCount == 0) return
+            clip.getItemAt(0).coerceToText(this)?.toString() ?: return
+        }.getOrNull() ?: return
         if (clipStore.add(text) && binding.pageClipboard.root.visibility == View.VISIBLE) {
             clipAdapter.submit(clipStore.getAll())
             refreshClipEmpty()
@@ -366,6 +408,8 @@ class MainActivity : AppCompatActivity() {
 
     // --- helpers ---
 
+    private fun isClickerRunning() = ClickerAccessibilityService.instance?.isRunning == true
+
     private fun isAccessibilityEnabled(): Boolean {
         val target = android.content.ComponentName(this, ClickerAccessibilityService::class.java)
         val enabled = Settings.Secure.getString(
@@ -399,4 +443,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    companion object {
+        private const val MIN_POINT_DELAY_MS = 20L
+    }
 }

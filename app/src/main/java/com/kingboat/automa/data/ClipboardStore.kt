@@ -12,6 +12,7 @@ class ClipboardStore(context: Context) {
     private val prefs = context.applicationContext
         .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    @Synchronized
     fun getAll(): MutableList<String> {
         val raw = prefs.getString(KEY, null) ?: return mutableListOf()
         return runCatching {
@@ -20,19 +21,25 @@ class ClipboardStore(context: Context) {
         }.getOrElse { mutableListOf() }
     }
 
-    /** Adds text to the front, de-duplicating and capping the list. */
+    /**
+     * Adds text to the front, capping item size and list length. Already-saved
+     * text is ignored (no reorder) so tapping an old row to re-copy doesn't
+     * make the list jump under the user's finger.
+     */
+    @Synchronized
     fun add(text: String): Boolean {
-        val trimmed = text.trim()
+        var trimmed = text.trim()
         if (trimmed.isEmpty()) return false
+        if (trimmed.length > MAX_TEXT_CHARS) trimmed = trimmed.substring(0, MAX_TEXT_CHARS)
         val list = getAll()
-        if (list.firstOrNull() == trimmed) return false // same as latest
-        list.remove(trimmed)
+        if (list.contains(trimmed)) return false
         list.add(0, trimmed)
         while (list.size > MAX_ITEMS) list.removeAt(list.size - 1)
         save(list)
         return true
     }
 
+    @Synchronized
     fun removeAt(index: Int) {
         val list = getAll()
         if (index in list.indices) {
@@ -41,7 +48,15 @@ class ClipboardStore(context: Context) {
         }
     }
 
-    fun clear() = prefs.edit().remove(KEY).apply()
+    /** Removes the entry showing [text] (stable against list reordering). */
+    @Synchronized
+    fun removeValue(text: String) {
+        val list = getAll()
+        if (list.remove(text)) save(list)
+    }
+
+    @Synchronized
+    fun clear() = prefs.edit().remove(KEY).commit()
 
     private fun save(list: List<String>) {
         val arr = JSONArray()
@@ -53,5 +68,6 @@ class ClipboardStore(context: Context) {
         private const val PREFS = "clipboard_store"
         private const val KEY = "history"
         const val MAX_ITEMS = 200
+        const val MAX_TEXT_CHARS = 4000
     }
 }

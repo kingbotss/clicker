@@ -12,7 +12,7 @@ import com.kingboat.automa.R
 class ClipboardAdapter(
     private var items: List<String>,
     private val onCopy: (String) -> Unit,
-    private val onDelete: (Int) -> Unit,
+    private val onDelete: (String) -> Unit,
 ) : RecyclerView.Adapter<ClipboardAdapter.Holder>() {
 
     class Holder(view: View) : RecyclerView.ViewHolder(view) {
@@ -35,10 +35,7 @@ class ClipboardAdapter(
         val value = items[position]
         holder.text.text = value
         holder.itemView.setOnClickListener { onCopy(value) }
-        holder.delete.setOnClickListener {
-            val pos = holder.bindingAdapterPosition
-            if (pos != RecyclerView.NO_POSITION) onDelete(pos)
-        }
+        holder.delete.setOnClickListener { onDelete(value) }
     }
 
     override fun getItemCount(): Int = items.size

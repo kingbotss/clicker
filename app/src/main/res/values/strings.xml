@@ -20,6 +20,8 @@
     <string name="pick_on_screen">Pick on screen</string>
     <string name="start">Start</string>
     <string name="stop">Stop</string>
+    <string name="stopped_by_volume">Auto-clicking stopped (volume key)</string>
+    <string name="stop_to_edit">Stop clicking before changing points</string>
     <string name="no_points">No points yet. Add one by coordinates, or use “Pick on screen”.</string>
     <string name="hint_label">Name</string>
     <string name="hint_x">X</string>

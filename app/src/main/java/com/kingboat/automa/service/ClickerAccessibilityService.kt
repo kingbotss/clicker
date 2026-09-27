@@ -8,8 +8,11 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Path
 import android.util.Log
+import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
+import android.widget.Toast
 import com.kingboat.automa.data.ClipboardStore
+import com.kingboat.automa.R
 import com.kingboat.automa.data.ClickRepository
 
 /**
@@ -48,7 +51,7 @@ class ClickerAccessibilityService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         clipboard?.removePrimaryClipChangedListener(clipListener)
-        if (::engine.isInitialized) engine.stop()
+        if (::engine.isInitialized) engine.destroy()
         if (::overlay.isInitialized) overlay.teardown()
         cancelNotification()
         if (instance === this) instance = null
@@ -59,15 +62,32 @@ class ClickerAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() { /* not used */ }
 
+    /**
+     * Physical kill switch: while the tap loop is running, a volume key press
+     * stops it immediately and is consumed. This always works even if the
+     * floating bar was moved off-screen/hidden and the taps are flooding the UI.
+     */
+    override fun onKeyEvent(event: KeyEvent): Boolean {
+        if (isRunning && event.action == KeyEvent.ACTION_DOWN &&
+            (event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
+                event.keyCode == KeyEvent.KEYCODE_VOLUME_UP)) {
+            stopClicking()
+            Toast.makeText(this, R.string.stopped_by_volume, Toast.LENGTH_LONG).show()
+            return true
+        }
+        return super.onKeyEvent(event)
+    }
+
     // --- clicking control ---
 
     val isRunning: Boolean get() = ::engine.isInitialized && engine.isRunning
 
-    fun startClicking() {
+    fun startClicking(): Boolean {
         val points = repo.getActivePoints()
-        if (points.isEmpty()) return
+        if (points.isEmpty()) return false
         engine.start(points) { onRunningChanged(false) }
         onRunningChanged(true)
+        return true
     }
 
     /** Dispatches one tap at ([x],[y]) to verify the service can inject touches. */
@@ -88,16 +108,23 @@ class ClickerAccessibilityService : AccessibilityService() {
     }
 
     fun stopClicking() {
+        if (!isRunning) return
         engine.stop()
-        onRunningChanged(false)
     }
 
-    fun toggle() = if (isRunning) stopClicking() else startClicking()
+    /** Returns the new running state (false when there was nothing to start). */
+    fun toggle(): Boolean {
+        if (isRunning) {
+            stopClicking()
+            return false
+        }
+        return startClicking()
+    }
 
     private fun onRunningChanged(running: Boolean) {
         stateListener?.invoke(running)
         if (::overlay.isInitialized) overlay.onRunningChanged(running)
-        if (controlsShown) postNotification(running)
+        updateNotification()
     }
 
     // --- control surfaces (bar or notification, per chosen mode) ---
@@ -107,20 +134,27 @@ class ClickerAccessibilityService : AccessibilityService() {
 
     fun showControls() {
         controlsShown = true
-        if (repo.controlMode == ClickRepository.MODE_OVERLAY) {
-            overlay.showBar()
-            cancelNotification()
-        } else {
-            overlay.hideBar()
-            postNotification(isRunning)
-        }
+        if (repo.controlMode == ClickRepository.MODE_OVERLAY) overlay.showBar() else overlay.hideBar()
         overlay.showMarkers()
+        updateNotification()
     }
 
     fun hideControls() {
         controlsShown = false
         overlay.teardown()
-        cancelNotification()
+        updateNotification()
+    }
+
+    /**
+     * Keep a notification with a Stop action whenever the tap loop is running
+     * (any control mode), so there is always a reachable way to stop even if
+     * the floating bar is gone. Otherwise only show it for notification-mode
+     * controls, and cancel it when nothing needs it.
+     */
+    private fun updateNotification() {
+        val needed = isRunning ||
+            (controlsShown && repo.controlMode == ClickRepository.MODE_NOTIFICATION)
+        if (needed) postNotification(isRunning) else cancelNotification()
     }
 
     fun startPicker() {
@@ -144,16 +178,18 @@ class ClickerAccessibilityService : AccessibilityService() {
 
     // --- clipboard capture ---
 
+    // Best-effort only: Android 10+ blocks background clipboard reads, so this
+    // may return stale data or throw. The foreground Activity capture in
+    // MainActivity is the reliable path.
     private fun saveCurrentClip() {
-        val clip = try {
-            clipboard?.primaryClip
-        } catch (e: SecurityException) {
+        runCatching {
+            val clip = clipboard?.primaryClip ?: return
+            if (clip.itemCount == 0) return
+            val text = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
+            clipStore.add(text)
+        }.onFailure { e ->
             Log.w(TAG, "Clipboard read denied: ${e.message}")
-            null
-        } ?: return
-        if (clip.itemCount == 0) return
-        val text = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
-        clipStore.add(text)
+        }
     }
 
     companion object {

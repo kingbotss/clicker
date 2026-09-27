@@ -48,7 +48,13 @@ class OverlayController(private val service: ClickerAccessibilityService) {
         val view = inflater.inflate(R.layout.overlay_bar, null)
         toggleButton = view.findViewById<Button>(R.id.btn_toggle).apply {
             text = service.getString(if (service.isRunning) R.string.overlay_stop else R.string.overlay_go)
-            setOnClickListener { service.toggle() }
+            setOnClickListener {
+                if (!service.isRunning && service.repo.getActivePoints().isEmpty()) {
+                    Toast.makeText(service, "Add at least one point", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                service.toggle()
+            }
         }
         view.findViewById<Button>(R.id.btn_pick).setOnClickListener { startPicker() }
 
@@ -102,8 +108,13 @@ class OverlayController(private val service: ClickerAccessibilityService) {
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        params.x = startX + (e.rawX - touchX).toInt()
-                        params.y = startY + (e.rawY - touchY).toInt()
+                        // Clamp within the display so a window (esp. the control
+                        // bar) can never be dragged fully off-screen and lost.
+                        val m = service.resources.displayMetrics
+                        val maxX = (m.widthPixels - windowView.width).coerceAtLeast(0)
+                        val maxY = (m.heightPixels - windowView.height).coerceAtLeast(0)
+                        params.x = (startX + (e.rawX - touchX).toInt()).coerceIn(0, maxX)
+                        params.y = (startY + (e.rawY - touchY).toInt()).coerceIn(0, maxY)
                         runCatching { wm.updateViewLayout(windowView, params) }
                         onMove?.invoke()
                         return true
@@ -205,9 +216,11 @@ class OverlayController(private val service: ClickerAccessibilityService) {
             var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
             if (!editable) flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            // Fixed dot x dot window so the visual centre always matches the
+            // stored point (WRAP_CONTENT would drift with measured size).
             val mp = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
+                dot,
+                dot,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 flags,
                 PixelFormat.TRANSLUCENT,
