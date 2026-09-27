@@ -2,15 +2,19 @@ package com.kingboat.automa.service
 
 import android.content.Context
 import android.graphics.PixelFormat
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import com.kingboat.automa.R
+import kotlin.math.abs
 
 /**
  * Hosts the floating control bar, the pass-through point picker and the on-screen
@@ -27,6 +31,8 @@ class OverlayController(private val service: ClickerAccessibilityService) {
     private val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val inflater = LayoutInflater.from(service)
     private val density = service.resources.displayMetrics.density
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val touchSlop = ViewConfiguration.get(service).scaledTouchSlop
 
     private var barView: View? = null
     private var toggleButton: Button? = null
@@ -95,19 +101,29 @@ class OverlayController(private val service: ClickerAccessibilityService) {
         params: WindowManager.LayoutParams,
         onMove: (() -> Unit)? = null,
         onEnd: (() -> Unit)? = null,
+        onLongPress: (() -> Unit)? = null,
     ) {
         handle.setOnTouchListener(object : View.OnTouchListener {
             private var startX = 0; private var startY = 0
             private var touchX = 0f; private var touchY = 0f
+            private var longFired = false
+            private val longRunnable = Runnable { longFired = true; onLongPress?.invoke() }
 
             override fun onTouch(v: View, e: MotionEvent): Boolean {
                 when (e.action) {
                     MotionEvent.ACTION_DOWN -> {
                         startX = params.x; startY = params.y
                         touchX = e.rawX; touchY = e.rawY
+                        longFired = false
+                        if (onLongPress != null) mainHandler.postDelayed(longRunnable, LONG_PRESS_MS)
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
+                        // A real drag cancels the pending long-press.
+                        if (abs(e.rawX - touchX) > touchSlop || abs(e.rawY - touchY) > touchSlop) {
+                            mainHandler.removeCallbacks(longRunnable)
+                        }
+                        if (longFired) return true
                         // Clamp within the display so a window (esp. the control
                         // bar) can never be dragged fully off-screen and lost.
                         val m = service.resources.displayMetrics
@@ -120,7 +136,8 @@ class OverlayController(private val service: ClickerAccessibilityService) {
                         return true
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        onEnd?.invoke()
+                        mainHandler.removeCallbacks(longRunnable)
+                        if (!longFired) onEnd?.invoke()
                         return true
                     }
                 }
@@ -230,9 +247,17 @@ class OverlayController(private val service: ClickerAccessibilityService) {
                 y = p.y - dot / 2
             }
             if (editable) {
-                makeDraggable(v, v, mp, onEnd = {
-                    service.repo.updatePoint(p.id, p.label, mp.x + dot / 2, mp.y + dot / 2, p.delayMs)
-                })
+                makeDraggable(
+                    v, v, mp,
+                    onEnd = {
+                        service.repo.updatePoint(p.id, p.label, mp.x + dot / 2, mp.y + dot / 2, p.delayMs)
+                    },
+                    onLongPress = {
+                        service.repo.deletePoint(p.id)
+                        Toast.makeText(service, "Deleted ${p.label}", Toast.LENGTH_SHORT).show()
+                        showMarkers()
+                    },
+                )
             }
             runCatching { wm.addView(v, mp) }.onSuccess { markerViews += v }
         }
@@ -266,5 +291,9 @@ class OverlayController(private val service: ClickerAccessibilityService) {
             flags,
             PixelFormat.TRANSLUCENT,
         )
+    }
+
+    companion object {
+        private const val LONG_PRESS_MS = 600L
     }
 }

@@ -62,6 +62,7 @@ class MainActivity : AppCompatActivity() {
         captureClipIntoHistory()
         reloadProfiles()
         renderPoints()
+        loadBreakSettings()
         refreshStartButton()
         clipAdapter.submit(clipStore.getAll())
         refreshClipEmpty()
@@ -69,6 +70,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        saveBreakSettings()
         if (ClickerAccessibilityService.instance?.stateListener != null) {
             ClickerAccessibilityService.instance?.stateListener = null
         }
@@ -290,6 +292,7 @@ class MainActivity : AppCompatActivity() {
             toast(getString(R.string.need_accessibility)); openAccessibilitySettings(); return
         }
         if (repo.getActivePoints().isEmpty()) { toast("Add at least one point"); return }
+        saveBreakSettings()
         ClickerAccessibilityService.instance?.toggle()
         refreshStartButton()
     }
@@ -407,6 +410,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     // --- helpers ---
+
+    private fun loadBreakSettings() = with(binding.pageClicker) {
+        inputBreakTaps.setText(repo.breakAfterTaps.takeIf { it > 0 }?.toString() ?: "")
+        inputBreakSecs.setText(repo.breakSeconds.takeIf { it > 0 }?.toString() ?: "")
+    }
+
+    private fun saveBreakSettings() = with(binding.pageClicker) {
+        repo.breakAfterTaps = (inputBreakTaps.text.toString().toIntOrNull() ?: 0).coerceAtLeast(0)
+        repo.breakSeconds = (inputBreakSecs.text.toString().toIntOrNull() ?: 0).coerceAtLeast(0)
+    }
 
     private fun isClickerRunning() = ClickerAccessibilityService.instance?.isRunning == true
 

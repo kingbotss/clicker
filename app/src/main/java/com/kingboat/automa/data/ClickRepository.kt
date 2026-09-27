@@ -136,6 +136,16 @@ class ClickRepository(context: Context) {
         get() = getMeta(KEY_MODE) ?: MODE_OVERLAY
         set(value) = setMeta(KEY_MODE, value)
 
+    /** Rest break: pause [breakSeconds] after every [breakAfterTaps] taps
+     *  (0 on either = feature off). */
+    var breakAfterTaps: Int
+        get() = getMeta(KEY_BREAK_TAPS)?.toIntOrNull() ?: 0
+        set(value) = setMeta(KEY_BREAK_TAPS, value.toString())
+
+    var breakSeconds: Int
+        get() = getMeta(KEY_BREAK_SECS)?.toIntOrNull() ?: 0
+        set(value) = setMeta(KEY_BREAK_SECS, value.toString())
+
     // --- meta helpers ---
 
     private fun getMeta(key: String): String? {
@@ -158,6 +168,8 @@ class ClickRepository(context: Context) {
         private const val DEFAULT_NAME = "Default"
         private const val KEY_ACTIVE = "active_profile"
         private const val KEY_MODE = "control_mode"
+        private const val KEY_BREAK_TAPS = "break_after_taps"
+        private const val KEY_BREAK_SECS = "break_seconds"
         const val MODE_OVERLAY = "overlay"
         const val MODE_NOTIFICATION = "notification"
     }

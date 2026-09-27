@@ -35,16 +35,31 @@ class ClickEngine(private val service: AccessibilityService) {
     var isRunning: Boolean = false
         private set
 
-    fun start(points: List<ClickPoint>, onStopped: () -> Unit) {
+    /**
+     * Runs the tap loop. If [breakAfterTaps] > 0 and [breakSeconds] > 0, the
+     * loop pauses for [breakSeconds] after every [breakAfterTaps] taps, then
+     * resumes (e.g. 1000 taps -> rest 100s -> continue).
+     */
+    fun start(
+        points: List<ClickPoint>,
+        breakAfterTaps: Int,
+        breakSeconds: Int,
+        onStopped: () -> Unit,
+    ) {
         if (isRunning || points.isEmpty()) return
         isRunning = true
         this.onStopped = onStopped
         job = scope.launch {
+            var taps = 0L
             while (isActive) {
                 for (point in points) {
                     if (!isActive) break
                     tap(point)
+                    taps++
                     delay(point.delayMs.coerceAtLeast(MIN_DELAY_MS))
+                    if (breakAfterTaps > 0 && breakSeconds > 0 && taps % breakAfterTaps == 0L) {
+                        delay(breakSeconds * 1000L)
+                    }
                 }
             }
         }

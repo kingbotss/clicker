@@ -27,6 +27,9 @@
     <string name="hint_x">X</string>
     <string name="hint_y">Y</string>
     <string name="hint_delay">ms between taps</string>
+    <string name="break_title">Rest break (leave empty for none)</string>
+    <string name="hint_break_taps">after N taps</string>
+    <string name="hint_break_secs">pause seconds</string>
     <string name="point_line">%1$s — (%2$d, %3$d) · %4$d ms</string>
     <string name="delete">Delete</string>
     <string name="edit_point">Edit point</string>

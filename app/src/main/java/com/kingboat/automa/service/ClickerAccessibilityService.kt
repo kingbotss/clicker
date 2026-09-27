@@ -3,9 +3,11 @@ package com.kingboat.automa.service
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Path
 import android.util.Log
 import android.view.KeyEvent
@@ -38,6 +40,14 @@ class ClickerAccessibilityService : AccessibilityService() {
 
     private val clipListener = ClipboardManager.OnPrimaryClipChangedListener { saveCurrentClip() }
 
+    /** Stops the tap loop when the screen turns off / device locks (also a
+     *  handy physical panic switch: press power to stop). */
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF && isRunning) stopClicking()
+        }
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         engine = ClickEngine(this)
@@ -46,11 +56,13 @@ class ClickerAccessibilityService : AccessibilityService() {
         overlay = OverlayController(this)
         clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboard?.addPrimaryClipChangedListener(clipListener)
+        registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
         instance = this
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
         clipboard?.removePrimaryClipChangedListener(clipListener)
+        runCatching { unregisterReceiver(screenOffReceiver) }
         if (::engine.isInitialized) engine.destroy()
         if (::overlay.isInitialized) overlay.teardown()
         cancelNotification()
@@ -85,7 +97,7 @@ class ClickerAccessibilityService : AccessibilityService() {
     fun startClicking(): Boolean {
         val points = repo.getActivePoints()
         if (points.isEmpty()) return false
-        engine.start(points) { onRunningChanged(false) }
+        engine.start(points, repo.breakAfterTaps, repo.breakSeconds) { onRunningChanged(false) }
         onRunningChanged(true)
         return true
     }
